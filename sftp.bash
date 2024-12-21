@@ -42,7 +42,7 @@ secure_chroot_dir=/var/run/vsftpd/empty
 pasv_enable=YES
 pasv_min_port=10000
 pasv_max_port=10100
-pasv_address=$(hostname -I | awk '{print $1}') # Fetch private IP
+pasv_address=$(ip addr show | grep "inet " | grep -v "127.0.0.1" | awk '{print $2}' | cut -d'/' -f1)
 
 # Logging
 log_ftp_protocol=YES
