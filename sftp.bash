@@ -33,39 +33,50 @@ xferlog_enable=YES
 connect_from_port_20=YES
 xferlog_file=/var/log/vsftpd.log
 xferlog_std_format=YES
-ftpd_banner=Welcome to Public FTP Server.
+ftpd_banner=Welcome to Secure FTP Server.
 chroot_local_user=YES
-allow_writeable_chroot=YES
+allow_writeable_chroot=NO
+secure_chroot_dir=/var/run/vsftpd/empty
 
 # Passive Mode Configuration
 pasv_enable=YES
 pasv_min_port=10000
 pasv_max_port=10100
-pasv_address=$(curl ifconfig.me) # Automatically fetch private IP
+pasv_address=$(hostname -I | awk '{print $1}') # Fetch private IP
 
 # Logging
 log_ftp_protocol=YES
 vsftpd_log_file=/var/log/vsftpd.log
 
 # Security Settings
-ssl_enable=NO
+ssl_enable=YES
+rsa_cert_file=/etc/ssl/certs/vsftpd.pem
+rsa_private_key_file=/etc/ssl/private/vsftpd.key
 EOL
+
+echo "Generating SSL certificates..."
+mkdir -p /etc/ssl/private
+openssl req -newkey rsa:2048 -nodes -keyout /etc/ssl/private/vsftpd.key -x509 -days 365 -out /etc/ssl/certs/vsftpd.pem -subj "/CN=FTPServer"
 
 echo "Creating FTP directories for the example user..."
 useradd -m ftpuser
-echo "ftpuser:123" | chpasswd
+echo "Please enter a password for ftpuser:"
+passwd ftpuser
 mkdir -p /home/ftpuser/ftp/upload
 chown -R ftpuser:ftpuser /home/ftpuser/ftp
 chmod -R 750 /home/ftpuser/ftp
-chmod 550 /home/ftpuser
 
 echo "Enabling and starting the vsftpd service..."
 systemctl enable vsftpd
 systemctl restart vsftpd
 
+echo "Configuring firewall rules..."
+iptables -A INPUT -p tcp --dport 21 -j ACCEPT
+iptables -A INPUT -p tcp --dport 10000:10100 -j ACCEPT
+
 echo "Setup complete!"
 echo "You can now connect to the FTP server using the following credentials:"
 echo "  Username: ftpuser"
-echo "  Password: 123"
-echo "  private IP Address: $(curl ifconfig.me)"
+echo "  Password: <your_password>"
+echo "  Local IP Address: $(hostname -I | awk '{print $1}')"
 echo "Make sure to change the password and customize configurations for production use."
